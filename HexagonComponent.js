@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Col, Container } from "react-bootstrap";
+import { Col } from "react-bootstrap";
 /* https://icons8.com/icons/set/helm */
 import './Hexagon.css'
 
@@ -7,35 +7,43 @@ import './Hexagon.css'
 
 const HexagonComponent = ({ category, idx }) => {
   const images = [
-    "/images/products/PPE.jpg",
-    "/images/products/POWERTOOLS.jpg",
-    "/images/products/SITESAFETY.jpg",
-    "/images/products/ELECTRICAL.jpg",
-    "/images/products/MECHANICAL.jpg",
-    "/images/products/HYDRATION.jpg",
-    "/images/products/SURPLUSSTOCK.jpg",
+    "/images/products/ppe.png",
+    "/images/products/drill.png",
+    "/images/products/electrical.png",
+    "/images/products/hose.png",
+    "/images/products/mechamical.png",
   ];
+
+  const imagesW = [
+    "/images/products/ppeW.png",
+    "/images/products/drillW.png",
+    "/images/products/electricalW.png",
+    "/images/products/hoseW.png",
+    "/images/products/mechamicalW.png",
+  ];
+
   return (
     <Col>
-    <div className='box'>
-      <div class="box1">
-        <div class="box2">
-          <div class="box3">
-            <img src="/images/products/PPE.png" alt="" />
-            <span className='hexagon_cat'>{category}</span>
+            <div className='box'>
+        <div class="box1">
+          <div class="box2">
+            <div class="box3">
+              <img className='img_N' src={images[idx]} alt="" />
+              <img className='img_W' src={imagesW[idx]} alt="" />
+              <p className='hexagon_cat'>{category}</p>
+            </div>
           </div>
         </div>
       </div>
-</div>
 
-      {/*     <div className='hexagon hex'>
-      <img
-        src={images[idx]}
-        alt="First slide"
-        className='hexagon_img'
-      />
-      <p>{category}</p>
-    </div> */}
+{/*       <div className='hexagon hex'>
+        <img
+          src={images[idx]}
+          alt="First slide"
+          className='hexagon_img'
+        />
+        <p>{category}</p>
+      </div> */}
     </Col>
   )
 }
