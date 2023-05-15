@@ -1,3 +1,20 @@
+const getCombinations = (array, length) => {
+  let result = [];
+  const f = (active, rest, length) => {
+    if (!active.length && !rest.length) return;
+    if (active.length === length) {
+      result.push(active);
+    } else {
+      if (rest.length) {
+        f(active.concat(rest[0]), rest.slice(1), length);
+        f(active, rest.slice(1), length);
+      }
+    }
+  };
+  f([], array, length);
+  return result;
+};
+
 const getProducts = async (req, res, next) => {
   try {
     let query = {};
@@ -23,25 +40,47 @@ const getProducts = async (req, res, next) => {
 
 
     /* ******* search function ******* */
-    const searchQuery = req.params.searchQuery ? req.params.searchQuery : "";
-
+    const searchQuery = req.params.searchQuery || "";
     let searchQueryCondition = {};
     let select = {};
     console.log("我是searchQuery", searchQuery);
     if (searchQuery) {
       queryCondition = true;
-      searchQueryCondition = {
-        $text: {
-          $search: searchQuery,
-          $caseSensitive: false,
-          $diacriticSensitive: false,
-        },
-      };
-      if (searchQuery.indexOf(" ") !== -1) {
-        const searchWords = searchQuery.split(" ");
-        searchWords.forEach((word) => {
-          searchQueryCondition.$text.$search += ` "${word}"`;
-        });
+      const searchWords = searchQuery.split(" ");
+
+      if (searchWords.length <= 2) {
+        searchQueryCondition = {
+          $text: {
+            $search: searchQuery,
+            $caseSensitive: false,
+            $diacriticSensitive: false,
+          },
+        };
+      } else {
+        let foundProducts = false;
+
+        for (let i = searchWords.length; i > 0 && !foundProducts; i--) {
+          const searchCombinations = getCombinations(searchWords, i);
+
+          for (const combination of searchCombinations) {
+            const searchPattern = combination.join("|");
+            searchQueryCondition = {
+              name: {
+                $regex: searchPattern,
+                $options: "i",
+              },
+            };
+
+            const tempQuery = { searchQueryCondition };
+
+            const tempProducts = await Product.find(tempQuery);
+            if (tempProducts.length > 0) {
+              foundProducts = true;
+              query = tempQuery;
+              break;
+            }
+          }
+        }
       }
     } 
 
@@ -126,3 +165,106 @@ products = products.slice(
 
 
 /* Yes, that is a good approach to progressively search for matching products by removing one word at a time and searching for all possible combinations of the remaining words. If no results are found after searching all possible combinations with fewer words, the search can continue by removing more words until every single word has been searched. This approach is called a "progressive search" or "incremental search." */
+
+let categoryMatchedProducts = [];
+for (const word of searchWords) {
+  if (word.length > 1) {
+    const regex = new RegExp(`${word}s?`, "i");
+    const categoryMatch = await Product.find({
+      category: {
+        $regex: regex,
+      },
+    });
+    categoryMatchedProducts = categoryMatchedProducts.concat(categoryMatch);
+    console.log("categoryMatch是啥？", categoryMatchedProducts);
+  }
+}
+
+/*     const searchQuery = req.params.searchQuery || "";
+    let searchQueryCondition = {};
+    let select = {};
+    console.log("我是searchQuery", searchQuery);
+    if (searchQuery) {
+      queryCondition = true;
+      const searchWords = searchQuery.split(" ");
+
+      let categorySearchQueryCondition = {
+        category: {
+          $regex: searchWords.join("|"),
+          $options: "i",
+        },
+      };
+
+      const categoryMatchedProducts = await Product.find(
+        categorySearchQueryCondition
+      );
+
+      if (categoryMatchedProducts.length > 0) {
+        let foundProducts = false;
+
+        for (let i = searchWords.length; i > 0 && !foundProducts; i--) {
+          const searchCombinations = getCombinations(searchWords, i);
+
+          for (const combination of searchCombinations) {
+            const searchPattern = combination.join("|");
+            searchQueryCondition = {
+              _id: { $in: categoryMatchedProducts.map((product) => product._id) },
+              name: {
+                $regex: searchPattern,
+                $options: "i",
+              },
+            };
+
+            const tempQuery = { searchQueryCondition };
+
+            const tempProducts = await Product.find(tempQuery);
+            if (tempProducts.length > 0) {
+              foundProducts = true;
+              query = tempQuery;
+              break;
+            }
+          }
+        }
+
+        if (!foundProducts) {
+          searchQueryCondition = {
+            _id: { $in: categoryMatchedProducts.map((product) => product._id) },
+          };
+        }
+      } else {
+        if (searchWords.length <= 2) {
+          searchQueryCondition = {
+            $text: {
+              $search: searchQuery,
+              $caseSensitive: false,
+              $diacriticSensitive: false,
+            },
+          };
+        } else {
+          let foundProducts = false;
+
+          for (let i = searchWords.length; i > 0 && !foundProducts; i--) {
+            const searchCombinations = getCombinations(searchWords, i);
+
+            for (const combination of searchCombinations) {
+              const searchPattern = combination.join("|");
+              searchQueryCondition = {
+                name: {
+                  $regex: searchPattern,
+                  $options: "i",
+                },
+              };
+
+              const tempQuery = { searchQueryCondition };
+
+              const tempProducts = await Product.find(tempQuery);
+              if (tempProducts.length > 0) {
+                foundProducts = true;
+                query = tempQuery;
+                break;
+              }
+            }
+          }
+        }
+      }
+    } */
