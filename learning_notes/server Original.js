@@ -44,45 +44,88 @@ const getProducts = async (req, res, next) => {
     let searchQueryCondition = {};
     let select = {};
     console.log("我是searchQuery", searchQuery);
-    if (searchQuery) {
-      queryCondition = true;
-      const searchWords = searchQuery.split(" ");
-
-      if (searchWords.length <= 2) {
-        searchQueryCondition = {
+    
+    const performSearch = async (query) => {
+      const searchWords = query.searchQuery.split(" ");
+    
+      if (searchWords.length <= 1) {
+        return {
           $text: {
-            $search: searchQuery,
+            $search: query.searchQuery,
             $caseSensitive: false,
             $diacriticSensitive: false,
           },
         };
       } else {
-        let foundProducts = false;
-
-        for (let i = searchWords.length; i > 0 && !foundProducts; i--) {
-          const searchCombinations = getCombinations(searchWords, i);
-
-          for (const combination of searchCombinations) {
-            const searchPattern = combination.join("|");
-            searchQueryCondition = {
-              name: {
-                $regex: searchPattern,
-                $options: "i",
-              },
-            };
-
-            const tempQuery = { searchQueryCondition };
-
-            const tempProducts = await Product.find(tempQuery);
-            if (tempProducts.length > 0) {
-              foundProducts = true;
-              query = tempQuery;
-              break;
-            }
-          }
+        const searchPattern = searchWords.map(word => `(?=.*${word})`).join("") + ".*";
+        const searchQueryCondition = {
+          name: {
+            $regex: searchPattern,
+            $options: "i",
+          },
+        };
+    
+        const tempProducts = query.productIds.length > 0 ? await Product.find({ _id: { $in: query.productIds }, ...searchQueryCondition }) : await Product.find(searchQueryCondition);
+        if (tempProducts.length > 0) {
+          return searchQueryCondition;
+        } else {
+          return null;
         }
       }
-    } 
+    };
+    
+    const performIndividualSearches = async (searchWords, productIds) => {
+      const searchConditions = searchWords.map(word => ({
+        name: {
+          $regex: word,
+          $options: "i",
+        },
+      }));
+    
+      const query = productIds.length > 0 ? { _id: { $in: productIds }, $or: searchConditions } : { $or: searchConditions };
+    
+      const products = await Product.find(query);
+      return products;
+    };
+    
+    if (searchQuery) {
+      queryCondition = true;
+      const searchWords = searchQuery.split(" ");
+    
+      let categoryMatchedProducts = [];
+      const filteredSearchWords = searchWords.filter((word) => word.length > 1);
+    
+      for (const word of filteredSearchWords) {
+        const regex = new RegExp(`${word}s?`, "i");
+        const categoryMatch = await Product.find({
+          category: {
+            $regex: regex,
+          },
+        });
+        categoryMatchedProducts = categoryMatchedProducts.concat(categoryMatch);
+        console.log("categoryMatch是啥？", categoryMatchedProducts.length);
+      }
+    
+      const productIds = categoryMatchedProducts.map(p => p._id);
+    
+      if (categoryMatchedProducts.length > 0) {
+        searchQueryCondition = await performSearch({ searchQuery, productIds });
+    
+        if (searchQueryCondition === null) {
+          const products = await performIndividualSearches(filteredSearchWords, productIds);
+          searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+        } else {
+          searchQueryCondition = { _id: { $in: productIds }, ...searchQueryCondition };
+        }
+      } else {
+        searchQueryCondition = await performSearch({ searchQuery, productIds: [] });
+    
+        if (searchQueryCondition === null) {
+          const products = await performIndividualSearches(filteredSearchWords, []);
+          searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+        }
+      }
+    }
 
     if (queryCondition) {
       query = {
