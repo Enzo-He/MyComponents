@@ -27,6 +27,51 @@ const PaginationComponent = ({
   // 如果上个return就不会走下面的了。而且这里是 pagination 这个的 to 不能解析？ query url
   return (
     <>
+      {/* 只显示中间10页版本 */}
+      <Pagination className="ms-4 mb-1 pagination_productlist">
+        <LinkContainer to={`${url}pageNum=${Math.max(1, 10)}`}>
+          {/* <Pagination.First disabled={pageNum <= 10} /> */}
+          <Pagination.Item disabled={pageNum <= 10}>{"First"}</Pagination.Item>
+        </LinkContainer>
+        <LinkContainer to={`${url}pageNum=${Math.max(1, pageNum - 10)}`}>
+          {/* <Pagination.Prev disabled={pageNum <= 10} /> */}
+          <Pagination.Item disabled={pageNum <= 10}>{"Prev"}</Pagination.Item>
+        </LinkContainer>
+
+        {Array.from(
+          { length: 10 },
+          (_, index) => Math.ceil(pageNum / 10) * 10 - 9 + index
+        )
+          .filter((page) => page <= paginationLinksNumber)
+          .map((page, index) => (
+            <LinkContainer key={index + 1} to={`${url}pageNum=${page}`}>
+              <Pagination.Item active={pageNum === page}>
+                {page}
+              </Pagination.Item>
+            </LinkContainer>
+          ))}
+
+        <LinkContainer
+          to={`${url}pageNum=${Math.min(paginationLinksNumber, pageNum + 10)}`}
+        >
+          {/* <Pagination.Next disabled={pageNum > paginationLinksNumber - 10} /> */}
+          <Pagination.Item
+            disabled={
+              Math.ceil(pageNum / 10) === Math.ceil(paginationLinksNumber / 10)
+            }
+          >
+            {"Next"}
+          </Pagination.Item>
+        </LinkContainer>
+        <LinkContainer to={`${url}pageNum=${paginationLinksNumber}`}>
+          {/* <Pagination.Last disabled={pageNum > paginationLinksNumber - 10} /> */}
+          <Pagination.Item disabled={pageNum > paginationLinksNumber - 10}>
+            {"Last"}
+          </Pagination.Item>
+        </LinkContainer>
+      </Pagination>
+
+      {/* 正常版本 */}
       {paginationLinksNumber && paginationLinksNumber > 8 ? (
         // 滚去首页，上一页
         <Pagination className="ms-4 mb-1 pagination_productlist">
@@ -130,7 +175,6 @@ const PaginationComponent = ({
         </Pagination>
       )}
 
-
       {/* 另一种：只显示10个页面 */}
       <Pagination className="ms-4 mb-1 pagination_productlist">
         <LinkContainer to={`${url}pageNum=${Math.max(1, 10)}`}>
@@ -162,9 +206,8 @@ const PaginationComponent = ({
           <Pagination.Last disabled={pageNum > paginationLinksNumber - 10} />
         </LinkContainer>
       </Pagination>
-
     </>
-/* 
+    /* 
 Array.from({length: 10}, (_, index) => Math.ceil(pageNum / 10) * 10 - 9 + index): This line of code creates a new array of length 10. The second argument is a map function that generates the elements of the array. Each element represents a page number.
 
 Math.ceil(pageNum / 10) * 10 - 9 + index is used to calculate the page number. This formula ensures that you're always working with groups of 10 pages. Math.ceil(pageNum / 10) gives you the current group of pages that pageNum falls into. You multiply by 10 to get the highest page number in that group, then subtract 9 to get the lowest page number. Adding index gives you each page number in the group.
@@ -173,7 +216,7 @@ Math.ceil(pageNum / 10) * 10 - 9 + index is used to calculate the page number. T
 .map((page, index) => (..)): This maps each page number to a JSX component, specifically a LinkContainer with a Pagination.Item inside. For each Pagination.Item, the active prop is set to true if the current page number (pageNum) is equal to the page number that the item represents (page). This will visually distinguish the current page in your pagination UI.
 */
 
-      // https://chat.openai.com/share/f7e02dff-762f-400e-b116-c2025c6a35d9
+    // https://chat.openai.com/share/f7e02dff-762f-400e-b116-c2025c6a35d9
   );
 };
 
