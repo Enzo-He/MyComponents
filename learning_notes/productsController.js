@@ -513,3 +513,193 @@ const searchQuery = req.params.searchQuery ? req.params.searchQuery : "";
         searchQueryCondition = await performSearch({ baseQuery: {}, searchQuery });
       }
     } */
+
+/* // 第七版 searchQuery
+        const searchQuery = req.params.searchQuery || "";
+        let searchQueryCondition = {};
+        let select = {};
+        console.log("我是searchQuery", searchQuery);
+    
+        const performSearch = async (query) => {
+          const searchWords = query.searchQuery.split(" ");
+          if (searchWords.length <= 1) {
+            return {
+              $text: {
+                $search: query.searchQuery,
+                $caseSensitive: false,
+                $diacriticSensitive: false,
+              },
+            };
+          } else {
+            const searchPattern = searchWords.map(word => `(?=.*${word})`).join("") + ".*";
+            const searchQueryCondition = {
+              name: {
+                $regex: searchPattern,
+                $options: "i",
+              },
+            };
+    
+            const tempProducts = query.productIds.length > 0 ? await Product.find({ _id: { $in: query.productIds }, ...searchQueryCondition }) : await Product.find(searchQueryCondition);
+            if (tempProducts.length > 0) {
+              return searchQueryCondition;
+            } else {
+              return null;
+            }
+          }
+        };
+    
+        const performIndividualSearches = async (searchWords, productIds) => {
+          const searchConditions = searchWords.map(word => ({
+            name: {
+              $regex: word,
+              $options: "i",
+            },
+          }));
+    
+          const query = productIds.length > 0 ? { _id: { $in: productIds }, $or: searchConditions } : { $or: searchConditions };
+    
+          const products = await Product.find(query);
+          return products;
+        };
+    
+        if (searchQuery) {
+          queryCondition = true;
+          const searchWords = searchQuery.split(" ");
+    
+          let categoryMatchedProducts = [];
+          const filteredSearchWords = searchWords.filter((word) => word.length > 1);
+          console.log(filteredSearchWords[0])
+    
+          for (const word of filteredSearchWords) {
+            const regex = new RegExp(`${word}`, "i");
+            const regexs = new RegExp(`${word}s`, "i");
+            console.log("regex", regex)
+            console.log("word", word)
+            const categoryMatch = await Product.find({
+              category: {
+                $regex: regex,
+              },
+            });
+            categoryMatchedProducts = categoryMatchedProducts.concat(categoryMatch);
+            console.log("categoryMatch是啥？", categoryMatchedProducts);
+    
+          }
+    
+          const productIds = categoryMatchedProducts.map(p => p._id);
+    
+          if (categoryMatchedProducts.length > 0) {
+            searchQueryCondition = await performSearch({ searchQuery, productIds });
+    
+            if (searchQueryCondition === null) {
+              const products = await performIndividualSearches(filteredSearchWords, productIds);
+              searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+            } else {
+              searchQueryCondition = { _id: { $in: productIds }, ...searchQueryCondition };
+            }
+          } else {
+            searchQueryCondition = await performSearch({ searchQuery, productIds: [] });
+    
+            if (searchQueryCondition === null) {
+              const products = await performIndividualSearches(filteredSearchWords, []);
+              searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+            }
+          }
+        } */
+
+
+/* // 第八版 searchQuery
+    const searchQuery = req.params.searchQuery || "";
+    let searchQueryCondition = {};
+    let select = {};
+    console.log("我是searchQuery", searchQuery);
+
+    const performSearch = async (query) => {
+      const searchWords = query.searchQuery.split(" ");
+      if (searchWords.length <= 1) {
+        const searchCondition = {
+          $text: {
+            $search: query.searchQuery,
+            $caseSensitive: false,
+            $diacriticSensitive: false,
+          },
+        };
+    
+        const results = await Product.find(searchCondition);
+        console.log(`Results of text search for '${query.searchQuery}':`, results);
+    
+        return searchCondition;
+      } else {
+        const searchPattern = searchWords.map(word => `(?=.*${word})`).join("") + ".*";
+        const searchQueryCondition = {
+          name: {
+            $regex: searchPattern,
+            $options: "i",
+          },
+        };
+    
+        const tempProducts = query.productIds.length > 0 ? await Product.find({ _id: { $in: query.productIds }, ...searchQueryCondition }) : await Product.find(searchQueryCondition);
+        if (tempProducts.length > 0) {
+          return searchQueryCondition;
+        } else {
+          return null;
+        }
+      }
+    };
+    
+    const performIndividualSearches = async (searchWords, productIds) => {
+      const searchConditions = searchWords.map(word => ({
+        name: {
+          $regex: word,
+          $options: "i",
+        },
+      }));
+    
+      const query = productIds.length > 0 ? { _id: { $in: productIds }, $or: searchConditions } : { $or: searchConditions };
+    
+      const products = await Product.find(query);
+      return products;
+    };
+    
+    if (searchQuery) {
+      queryCondition = true;
+      const searchWords = searchQuery.split(" ");
+    
+      if (searchWords.length > 1) { // Only proceed with additional search functionality if there are multiple words
+        let categoryMatchedProducts = [];
+        const filteredSearchWords = searchWords.filter((word) => word.length > 1);
+    
+        for (const word of filteredSearchWords) {
+          const regex = new RegExp(`${word}`, "i");
+          const categoryMatch = await Product.find({
+            category: {
+              $regex: regex,
+            },
+          });
+          categoryMatchedProducts = categoryMatchedProducts.concat(categoryMatch);
+        }
+    
+        const productIds = categoryMatchedProducts.map(p => p._id);
+    
+        if (categoryMatchedProducts.length > 0) {
+          searchQueryCondition = await performSearch({ searchQuery, productIds });
+    
+          if (searchQueryCondition === null) {
+            const products = await performIndividualSearches(filteredSearchWords, productIds);
+            searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+          } else {
+            searchQueryCondition = { _id: { $in: productIds }, ...searchQueryCondition };
+          }
+        } else {
+          searchQueryCondition = await performSearch({ searchQuery, productIds: [] });
+    
+          if (searchQueryCondition === null) {
+            const products = await performIndividualSearches(filteredSearchWords, []);
+            searchQueryCondition = { _id: { $in: products.map(p => p._id) } };
+          }
+        }
+      } else {
+        // If there is only one word in the search query, we only use the text search
+        searchQueryCondition = await performSearch({ searchQuery, productIds: [] });
+      }
+    }
+*/
